@@ -9,12 +9,6 @@ load_dotenv()
 ##### LLAMAPARSE #####
 from llama_parse import LlamaParse
 
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
-from langchain_community.vectorstores import Qdrant
-from langchain_community.document_loaders import DirectoryLoader
-import nltk
-
 import pickle
 
 llamaparse_api_key = os.getenv("LLAMA_CLOUD_API_KEY")

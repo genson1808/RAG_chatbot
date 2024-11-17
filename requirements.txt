@@ -1,10 +1,12 @@
 langchain
 langchain-community
-llama-parse 
+llama-parse
 fastembed
 qdrant_client
 python-dotenv
 langchain-groq
 chainlit
 fastembed
+langchain_cohere
+sentence-transformers
 unstructured[md]

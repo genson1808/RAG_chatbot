@@ -12,6 +12,8 @@ from langchain_community.chat_models import ChatOllama
 import chainlit as cl
 from langchain.chains import RetrievalQA
 
+from src.base.llm import SingletonChatLLM
+
 # bring in our GROQ_API_KEY
 from dotenv import load_dotenv
 load_dotenv()
@@ -31,20 +33,34 @@ qdrant_api_key = os.getenv("QDRANT_API_KEY")
 #     もし情報が不足している場合は、知らないと答えてください。無理に答えを作らないでください。
 #     """
 
-custom_prompt_template = """あなたは有用なアシスタントです。以下はシステムに関する文書のコンテキストです。
-    コンテキスト:
-    {context}
+# custom_prompt_template = """あなたは有用なアシスタントです。以下はシステムに関する文書のコンテキストです。
+#     コンテキスト:
+#     {context}
 
-    上記の情報に基づいて、以下の質問に答えてください：
-    質問: {question}
+#     上記の情報に基づいて、以下の質問に答えてください：
+#     質問: {question}
 
-    以下のルールを守って回答してください：
-    1. 質問が日本語の場合は必ず日本語で回答してください。
-    2. 質問が他の言語でされた場合は、その言語で回答してください。
-    3. 十分な情報がない場合は、「申し訳ありませんが、分かりません」と回答してください。無理に答えを作らないでください。
+#     以下のルールを守って回答してください：
+#     1. 質問が日本語の場合は必ず日本語で回答してください。
+#     2. 質問が他の言語でされた場合は、その言語で回答してください。
+#     3. 十分な情報がない場合は、「申し訳ありませんが、分かりません」と回答してください。無理に答えを作らないでください。
 
-    答え:
-    """
+#     答え:
+#     """
+
+
+custom_prompt_template = """You are a helpful assistant, You must use japanese to answer the question, conversing with a user about the subjects contained in a set of documents.
+Use the information from the DOCUMENTS section to provide accurate answers. If unsure or if the answer
+isn't found in the DOCUMENTS section, simply state that you don't know the answer.
+
+Documents:
+{context}
+
+Question:
+{question}
+
+Answer:
+"""
 
 def set_custom_prompt():
     """
@@ -56,18 +72,28 @@ def set_custom_prompt():
 
 
 # chat_model = ChatGroq(temperature=0, model_name="mixtral-8x7b-32768")
-chat_model = ChatGroq(temperature=0, model_name="llama3-groq-70b-8192-tool-use-preview")
+# chat_model = ChatGroq(temperature=0, model_name="llama3-groq-70b-8192-tool-use-preview")
 #chat_model = ChatGroq(temperature=0, model_name="Llama2-70b-4096")
 #chat_model = ChatOllama(model="llama2", request_timeout=30.0)
 
+chat_model = SingletonChatLLM(llm_name='CHAT_GROQ').get_llm()
+
 client = QdrantClient(api_key=qdrant_api_key, url=qdrant_url,)
 
+from langchain_community.document_compressors import JinaRerank
+from langchain.retrievers import ContextualCompressionRetriever
 
+os.environ["JINA_API_KEY"] = os.getenv("JINA_API_KEY")
 def retrieval_qa_chain(llm, prompt, vectorstore):
+    retriever = vectorstore.as_retriever(search_kwargs={'k': 2})
+    compressor = JinaRerank()
+    compression_retriever = ContextualCompressionRetriever(
+        base_compressor=compressor, base_retriever=retriever
+    )
     qa_chain = RetrievalQA.from_chain_type(
         llm=llm,
         chain_type="stuff",
-        retriever=vectorstore.as_retriever(search_kwargs={'k': 2}),
+        retriever=compression_retriever,
         return_source_documents=True,
         chain_type_kwargs={'prompt': prompt}
     )
@@ -76,7 +102,7 @@ def retrieval_qa_chain(llm, prompt, vectorstore):
 
 def qa_bot():
     embeddings = FastEmbedEmbeddings()
-    vectorstore = Qdrant(client=client, embeddings=embeddings, collection_name="rag")
+    vectorstore = Qdrant(client=client, embeddings=embeddings, collection_name="rag2")
     llm = chat_model
     qa_prompt=set_custom_prompt()
     qa = retrieval_qa_chain(llm, qa_prompt, vectorstore)
