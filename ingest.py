@@ -28,7 +28,7 @@ import pickle
 def load_or_parse_data():
     nltk.download('all')
 
-    data_file = "./data/parsed_data.pkl"
+    data_file = "./ndidata/parsed_data.pkl"
 
     if os.path.exists(data_file):
         # Load the parsed data from the file
@@ -50,8 +50,9 @@ def load_or_parse_data():
         06 用語集
 
         質問に答える際は、特に図表やテーブル、定義に関して正確であることを心掛けてください。"""
-        parser = LlamaParse(api_key=llamaparse_api_key, result_type="markdown", parsing_instruction=parsingInstructionUber10k, languagla="ja")
-        llama_parse_documents = parser.load_data("./data/wp2_hdr_j1_181031.pdf")
+        # parser = LlamaParse(api_key=llamaparse_api_key, result_type="markdown", parsing_instruction=parsingInstructionUber10k, languagla="ja")
+        parser = LlamaParse(api_key=llamaparse_api_key, result_type="markdown")
+        llama_parse_documents = parser.load_data("./ndidata/NDI-5.6-White-Paper-2023.pdf")
 
 
         # Save the parsed data to a file
@@ -78,11 +79,11 @@ def create_vector_database():
     llama_parse_documents = load_or_parse_data()
     print(llama_parse_documents[1].text[:100])
 
-    with open('data/output.md', 'a') as f:  # Open the file in append mode ('a')
+    with open('./ndidata/output.md', 'a') as f:  # Open the file in append mode ('a')
         for doc in llama_parse_documents:
             f.write(doc.text + '\n')
 
-    loader = DirectoryLoader('data/', glob="**/*.md", show_progress=True)
+    loader = DirectoryLoader('./ndidata/', glob="**/*.md", show_progress=True)
     documents = loader.load()
     # Split loaded documents into chunks
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=2000, chunk_overlap=100)
@@ -99,7 +100,7 @@ def create_vector_database():
         documents=docs,
         embedding=embeddings,
         url=qdrant_url,
-        collection_name="rag",
+        collection_name="ndi_collection",
         api_key=qdrant_api_key,
         prefer_grpc=True,
     )
